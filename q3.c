@@ -32,7 +32,7 @@ struct thread {
 int randThread(int team, int min, int max);
 
 /**
- * Frees thread_struct array memory
+ * Frees arg struct array memory
  * @param inArgArr Input array
  * @param size   Number of arguments
  */
@@ -58,6 +58,7 @@ void allocate_arguments(struct arguments **inArgArr, int size,
 
 /**
  * @param inArgArr Argument array
+ * @param inThArr Thread array
  * @param size Arg array size
  */
 void run_threads(struct arguments **inArgArr, struct thread **inThArr, int size); 
