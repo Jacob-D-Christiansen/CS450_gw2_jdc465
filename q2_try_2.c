@@ -100,7 +100,7 @@ void *do_work(void *arg)
   int *buffer = work_thread->buffer;
   int *buffer_size = work_thread->buffer_size;
   int *num_updates_even = work_thread->num_updates_even;
-  int *num_updates_odd = work_thread->num_updates_even;
+  int *num_updates_odd = work_thread->num_updates_odd;
   
 
 
@@ -113,14 +113,15 @@ void *do_work(void *arg)
     { 
       
       pthread_mutex_lock(&lock);
-      while (*buffer_size==1)
+      while (*buffer_size == 1)
       {
-        fprintf(stderr,"\n[Tid %d] Waiting", myTid);
+        fprintf(stderr,"\n[Tid %d] Waiting\n", myTid);
         pthread_cond_wait(is_empty, &lock);
       }
+      
       pthread_mutex_lock(&lock_even);
       *buffer=myTid;
-      printf("\n[Tid %d] Buffer is: %d", myTid, *buffer);
+      printf("\n[Tid %d] Buffer is: %d\n", myTid, *buffer);
       (*buffer_size)++;
       (*num_updates_even)++;
       pthread_mutex_unlock(&lock_even);
@@ -137,17 +138,17 @@ void *do_work(void *arg)
     {
       
       pthread_mutex_lock(&lock);
-      while (*buffer_size==0)
+      while (*buffer_size == 0)
       {
-        fprintf(stderr,"\n[Tid %d] Waiting", myTid);
+        fprintf(stderr,"\n[Tid %d] Waiting\n", myTid);
         pthread_cond_wait(is_full, &lock);
       }
       
       pthread_mutex_lock(&lock_odd);
-      int myBuffer=*buffer;
-      fprintf(stderr,"\n[Tid %d] Buffer is: %d", myTid, myBuffer);
+      int myBuffer = *buffer;
+      fprintf(stderr,"\n[Tid %d] Buffer is: %d\n", myTid, myBuffer);
       (*buffer_size)--;
-      num_updates_odd++;
+      (*num_updates_odd)++;
       pthread_mutex_unlock(&lock_odd);
          
       
