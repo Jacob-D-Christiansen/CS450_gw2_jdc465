@@ -10,18 +10,19 @@ struct threads_and_buffer {
    pthread_mutex_t lock;
    pthread_mutex_t lock_even;
    pthread_mutex_t lock_odd;
-   pthread_cond_t is_empty;
-   pthread_cond_t is_full;
+   pthread_cond_t *is_empty;
+   pthread_cond_t *is_full;
    int *buffer;
    int *buffer_size;
    int *num_updates_even;
    int *num_updates_odd;
-   int *t;
+   int t;
 }; 
 
 int main(int argc, char *argv) 
 {
-  int t;
+
+  int t = 0;
 
   pthread_mutex_t lock, lock_even, lock_odd;
   pthread_cond_t is_empty;
@@ -32,32 +33,34 @@ int main(int argc, char *argv)
   int num_updates_odd=0;
 
   int num_threads=10;
-  pthread_t *worker_thread[num_threads];
+  pthread_t worker_thread[num_threads];
   struct threads_and_buffer *worker_struct[ num_threads ];
 
   pthread_mutex_init(&lock, NULL);
+  pthread_mutex_init(&lock_even, NULL);
+  pthread_mutex_init(&lock_odd, NULL);
   pthread_cond_init(&is_empty, NULL);
   pthread_cond_init(&is_full, NULL);
   
 
   // Creating child threads
-  for (t=0; t < num_threads; t++) 
+  for (t = 0; t < num_threads; t++) 
   {
 
-    worker_struct[t] = (struct threads_and_buffer *) calloc(1, sizeof(struct threads_and_buffer *));
+    worker_struct[t] = (struct threads_and_buffer *) calloc(1, sizeof(struct threads_and_buffer));
 
     worker_struct[t]->lock = lock;
     worker_struct[t]->lock_even = lock_even;
     worker_struct[t]->lock_odd = lock_odd;
-    worker_struct[t]->is_empty = is_empty;
-    worker_struct[t]->is_full = is_full;
+    worker_struct[t]->is_empty = &is_empty;
+    worker_struct[t]->is_full = &is_full;
     worker_struct[t]->buffer = &buffer;
     worker_struct[t]->buffer_size = &buffer_size;
     worker_struct[t]->num_updates_even = &num_updates_even;
     worker_struct[t]->num_updates_odd = &num_updates_odd;
-    worker_struct[t]->t = &t;
+    worker_struct[t]->t = t;
 
-    if (pthread_create(worker_thread[t], NULL, do_work, (void *) worker_struct[t])) 
+    if (pthread_create(&worker_thread[t], NULL, do_work, (void *) worker_struct[t])) 
     {
       fprintf(stderr,"Error while creating thread #%d\n",t);
       exit(1);
@@ -75,49 +78,57 @@ int main(int argc, char *argv)
       exit(1);
     }
   }
-  exit(0); 
 
   printf("\nThe nunber of odd updates to the buffer was: %d", num_updates_odd);
   printf("\nThe number of even updates to the buffer was: %d", num_updates_even);
 
   printf("\n\n");
+
+  return 0;
 }
 
 void *do_work(void *arg) 
 {
-  struct threads_and_buffer* work_thread = (struct threads_and_buffer*)arg;
+  struct threads_and_buffer* work_thread = (struct threads_and_buffer *)arg;
     
-  long int myTid=(long int )work_thread->t;
+  int myTid= work_thread->t;
   pthread_mutex_t lock = work_thread->lock;
   pthread_mutex_t lock_even = work_thread->lock_even;
   pthread_mutex_t lock_odd = work_thread->lock_odd;
-  pthread_cond_t is_empty = work_thread->is_empty;
-  pthread_cond_t is_full = work_thread->is_full;
+  pthread_cond_t *is_empty = work_thread->is_empty;
+  pthread_cond_t *is_full = work_thread->is_full;
   int *buffer = work_thread->buffer;
   int *buffer_size = work_thread->buffer_size;
-  int num_updates_even = work_thread->num_updates_even;
-  int num_updates_odd = work_thread->num_updates_even;
+  int *num_updates_even = work_thread->num_updates_even;
+  int *num_updates_odd = work_thread->num_updates_even;
   
 
 
-  while( num_updates_even < 10 && num_updates_odd < 10 )
+  while( *num_updates_even < 10 && *num_updates_odd < 10 )
   {
 
     //Code for even threads
     //Add to buffer
     if (myTid%2==0)
     { 
+      
       pthread_mutex_lock(&lock);
       while (*buffer_size==1)
       {
-        fprintf(stderr,"\n[Tid %ld] Waiting", myTid);
-        pthread_cond_wait(&is_empty, &lock);
+        fprintf(stderr,"\n[Tid %d] Waiting", myTid);
+        pthread_cond_wait(is_empty, &lock);
       }
+      if(*buffer_size == 0)
+         {
+      pthread_mutex_lock(&lock_even);
       *buffer=myTid;
-      printf("\n[Tid %ld] Buffer is: %d", myTid, *buffer);
+      printf("\n[Tid %d] Buffer is: %d", myTid, *buffer);
       buffer_size++;
-      num_updates_even++;
-      pthread_cond_signal(&is_full);
+      (*num_updates_even)++;
+      pthread_mutex_unlock(&lock_even);
+         }
+      
+      pthread_cond_signal(is_full);
       pthread_mutex_unlock(&lock);
       usleep(100000);
     }
@@ -126,18 +137,27 @@ void *do_work(void *arg)
     //Remove from buffer
     else if (myTid%2==1)
     {
+      
       pthread_mutex_lock(&lock);
       while (*buffer_size==0)
       {
-        fprintf(stderr,"\n[Tid %ld] Waiting", myTid);
-        pthread_cond_wait(&is_full, &lock);
+        fprintf(stderr,"\n[Tid %d] Waiting", myTid);
+        pthread_cond_wait(is_full, &lock);
       }
+      
+      if(*buffer_size == 1)
+         {
+      pthread_mutex_lock(&lock_odd);
       int myBuffer=*buffer;
-      fprintf(stderr,"\n[Tid %ld] Buffer is: %d", myTid, myBuffer);
-      buffer_size--;
+      fprintf(stderr,"\n[Tid %d] Buffer is: %d", myTid, myBuffer);
+      (*buffer_size)--;
       num_updates_odd++;
-      pthread_cond_signal(&is_empty);
+      pthread_mutex_unlock(&lock_odd);
+         }
+      
+      pthread_cond_signal(is_empty);
       pthread_mutex_unlock(&lock);
+      
       usleep(100000);
     }
   }
