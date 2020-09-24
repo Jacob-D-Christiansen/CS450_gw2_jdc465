@@ -7,6 +7,7 @@
 void *do_work(void *arg);
 
 struct threads_and_buffer { 
+   pthread_mutex_t lock;
    pthread_mutex_t lock_even;
    pthread_mutex_t lock_odd;
    pthread_cond_t is_empty;
@@ -48,6 +49,7 @@ int main(int argc, char *argv)
 
     worker_struct[t] = (struct threads_and_buffer *) calloc(1, sizeof(struct threads_and_buffer));
 
+    worker_struct[t]->lock = lock;
     worker_struct[t]->lock_even = lock_even;
     worker_struct[t]->lock_odd = lock_odd;
     worker_struct[t]->is_empty = is_empty;
@@ -90,6 +92,7 @@ void *do_work(void *arg)
   struct threads_and_buffer* work_thread = (struct threads_and_buffer *)arg;
     
   int myTid= work_thread->t;
+  pthread_mutex_t lock = work_thread->lock;
   pthread_mutex_t lock_even = work_thread->lock_even;
   pthread_mutex_t lock_odd = work_thread->lock_odd;
   pthread_cond_t is_empty = work_thread->is_empty;
@@ -109,16 +112,18 @@ void *do_work(void *arg)
     if (myTid%2==0)
     { 
       pthread_mutex_lock(&lock_even);
+      pthread_mutex_lock(&lock);
       while (*buffer_size==1)
       {
         fprintf(stderr,"\n[Tid %d] Waiting", myTid);
-        pthread_cond_wait(&is_empty, &lock_even);
+        pthread_cond_wait(&is_empty, &lock);
       }
       *buffer=myTid;
       printf("\n[Tid %d] Buffer is: %d", myTid, *buffer);
       buffer_size++;
       (*num_updates_even)++;
       pthread_cond_signal(&is_full);
+      pthread_mutex_unlock(&lock);
       pthread_mutex_unlock(&lock_even);
       usleep(100000);
     }
@@ -128,16 +133,18 @@ void *do_work(void *arg)
     else if (myTid%2==1)
     {
       pthread_mutex_lock(&lock_odd);
+      pthread_mutex_lock(&lock);
       while (*buffer_size==0)
       {
         fprintf(stderr,"\n[Tid %d] Waiting", myTid);
-        pthread_cond_wait(&is_full, &lock_odd);
+        pthread_cond_wait(&is_full, &lock);
       }
       int myBuffer=*buffer;
       fprintf(stderr,"\n[Tid %d] Buffer is: %d", myTid, myBuffer);
       (*buffer_size)--;
       num_updates_odd++;
       pthread_cond_signal(&is_empty);
+      pthread_mutex_unlock(&lock);
       pthread_mutex_unlock(&lock_odd);
       usleep(100000);
     }
