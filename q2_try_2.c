@@ -104,7 +104,7 @@ void *do_work(void *arg)
   
 
 
-  while( *num_updates_even < 10 && *num_updates_odd < 10 )
+  while( *num_updates_even < 10 || *num_updates_odd < 10 )
   {
 
     //Code for even threads
@@ -119,13 +119,15 @@ void *do_work(void *arg)
         pthread_cond_wait(is_empty, &lock);
       }
       
-      pthread_mutex_lock(&lock_even);
-      *buffer=myTid;
-      printf("\n[Tid %d] Buffer is: %d\n", myTid, *buffer);
-      (*buffer_size)++;
-      (*num_updates_even)++;
-      pthread_mutex_unlock(&lock_even);
-         
+      if(*num_updates_even < 10)
+         {
+            pthread_mutex_lock(&lock_even);
+            *buffer=myTid;
+            printf("\n[Tid %d] Buffer is: %d\n", myTid, *buffer);
+            (*buffer_size)++;
+            (*num_updates_even)++;
+            pthread_mutex_unlock(&lock_even);
+         }
       
       pthread_cond_signal(is_full);
       pthread_mutex_unlock(&lock);
@@ -134,7 +136,7 @@ void *do_work(void *arg)
   
     //Code for odd threads
     //Remove from buffer
-    else if (myTid%2==1)
+    else if (myTid%2==1 && *num_updates_odd < 10)
     {
       
       pthread_mutex_lock(&lock);
@@ -144,13 +146,15 @@ void *do_work(void *arg)
         pthread_cond_wait(is_full, &lock);
       }
       
-      pthread_mutex_lock(&lock_odd);
-      int myBuffer = *buffer;
-      fprintf(stderr,"\n[Tid %d] Buffer is: %d\n", myTid, myBuffer);
-      (*buffer_size)--;
-      (*num_updates_odd)++;
-      pthread_mutex_unlock(&lock_odd);
-         
+      if(*num_updates_odd < 10)
+         {
+            pthread_mutex_lock(&lock_odd);
+            int myBuffer = *buffer;
+            fprintf(stderr,"\n[Tid %d] Buffer is: %d\n", myTid, myBuffer);
+            (*buffer_size)--;
+            (*num_updates_odd)++;
+            pthread_mutex_unlock(&lock_odd);
+         }
       
       pthread_cond_signal(is_empty);
       pthread_mutex_unlock(&lock);
