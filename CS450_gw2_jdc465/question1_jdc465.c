@@ -57,7 +57,7 @@ int main(int argc, char *argv)
          fprintf(stderr,"Error while joining with child thread #%d\n",t);
          exit(1);
        }
-       free(arg_thread[t])
+       free(arg_thread[t]);
      }
 
      printf("\nCount: %d (should be: %d)", 
