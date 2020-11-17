@@ -14,7 +14,7 @@ __global__ void vectorAdd(unsigned int * A, unsigned int * B, unsigned int * C);
 
 int main(int argc, char *argv[])
 {
-  double start;
+  double start, comp_start, mem_start;
   start = omp_get_wtime();
 
 	warmUpGPU();
@@ -59,6 +59,7 @@ int main(int argc, char *argv[])
 	unsigned int * dev_B;
 	unsigned int * dev_C;
 
+  mem_start = omp_get_wtime();
 	//allocate on the device: A, B, C
 	errCode=cudaMalloc((unsigned int**)&dev_A, sizeof(unsigned int)*N);
 	if(errCode != cudaSuccess) {
@@ -92,12 +93,15 @@ int main(int argc, char *argv[])
 	if(errCode != cudaSuccess) {
 	cout << "\nError: A memcpy error with code " << errCode << endl;
 	}
+  printf("%s%lf\n", "\nTransfer time: ", omp_get_wtime() - mem_start);
 
 	//execute kernel
+  comp_start = omp_get_wtime();
 	const unsigned int totalBlocks=ceil(N*1.0/1024.0);
 	printf("\ntotal blocks: %d",totalBlocks);
 	vectorAdd<<<totalBlocks,1024>>>(dev_A, dev_B, dev_C);
 
+  printf("%s%lf\n", "\nComp time: ", omp_get_wtime() - comp_start);
 	if(errCode != cudaSuccess){
 		cout<<"Error after kernel launch "<<errCode<<endl;
 	}
@@ -108,7 +112,7 @@ int main(int argc, char *argv[])
 	cout << "\nError: getting C result form GPU error with code " << errCode << endl;
 	}
 
-  printf("%s%lf\n", "\nTime elapsed: ", omp_get_wtime() - start);
+  printf("%s%lf\n", "\nTotal time: ", omp_get_wtime() - start);
 	return 0;
 }
 
